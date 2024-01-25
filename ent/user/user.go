@@ -13,6 +13,8 @@ const (
 	FieldID = "id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldSocial holds the string denoting the social field in the database.
+	FieldSocial = "social"
 	// FieldAddress holds the string denoting the address field in the database.
 	FieldAddress = "address"
 	// Table holds the table name of the user in the database.
@@ -23,6 +25,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldName,
+	FieldSocial,
 	FieldAddress,
 }
 
@@ -47,6 +50,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// BySocial orders the results by the social field.
+func BySocial(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSocial, opts...).ToFunc()
 }
 
 // ByAddress orders the results by the address field.

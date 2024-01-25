@@ -14,6 +14,10 @@ type User struct {
 func (User) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("name"),
+		// Having a unique social security number ensures we don't insert the same user twice.
+		// We should remember to hash the social and only store the last 4 digits
+		// before we take this to production.
+		field.String("social").Unique(),
 		field.String("address").
 			Optional(),
 	}

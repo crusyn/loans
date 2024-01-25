@@ -25,6 +25,12 @@ func (uc *UserCreate) SetName(s string) *UserCreate {
 	return uc
 }
 
+// SetSocial sets the "social" field.
+func (uc *UserCreate) SetSocial(s string) *UserCreate {
+	uc.mutation.SetSocial(s)
+	return uc
+}
+
 // SetAddress sets the "address" field.
 func (uc *UserCreate) SetAddress(s string) *UserCreate {
 	uc.mutation.SetAddress(s)
@@ -76,6 +82,9 @@ func (uc *UserCreate) check() error {
 	if _, ok := uc.mutation.Name(); !ok {
 		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "User.name"`)}
 	}
+	if _, ok := uc.mutation.Social(); !ok {
+		return &ValidationError{Name: "social", err: errors.New(`ent: missing required field "User.social"`)}
+	}
 	return nil
 }
 
@@ -105,6 +114,10 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := uc.mutation.Name(); ok {
 		_spec.SetField(user.FieldName, field.TypeString, value)
 		_node.Name = value
+	}
+	if value, ok := uc.mutation.Social(); ok {
+		_spec.SetField(user.FieldSocial, field.TypeString, value)
+		_node.Social = value
 	}
 	if value, ok := uc.mutation.Address(); ok {
 		_spec.SetField(user.FieldAddress, field.TypeString, value)

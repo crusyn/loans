@@ -33,6 +33,7 @@ type UserMutation struct {
 	typ           string
 	id            *int
 	name          *string
+	social        *string
 	address       *string
 	clearedFields map[string]struct{}
 	done          bool
@@ -174,6 +175,42 @@ func (m *UserMutation) ResetName() {
 	m.name = nil
 }
 
+// SetSocial sets the "social" field.
+func (m *UserMutation) SetSocial(s string) {
+	m.social = &s
+}
+
+// Social returns the value of the "social" field in the mutation.
+func (m *UserMutation) Social() (r string, exists bool) {
+	v := m.social
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSocial returns the old "social" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldSocial(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSocial is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSocial requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSocial: %w", err)
+	}
+	return oldValue.Social, nil
+}
+
+// ResetSocial resets all changes to the "social" field.
+func (m *UserMutation) ResetSocial() {
+	m.social = nil
+}
+
 // SetAddress sets the "address" field.
 func (m *UserMutation) SetAddress(s string) {
 	m.address = &s
@@ -257,9 +294,12 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 2)
+	fields := make([]string, 0, 3)
 	if m.name != nil {
 		fields = append(fields, user.FieldName)
+	}
+	if m.social != nil {
+		fields = append(fields, user.FieldSocial)
 	}
 	if m.address != nil {
 		fields = append(fields, user.FieldAddress)
@@ -274,6 +314,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case user.FieldName:
 		return m.Name()
+	case user.FieldSocial:
+		return m.Social()
 	case user.FieldAddress:
 		return m.Address()
 	}
@@ -287,6 +329,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 	switch name {
 	case user.FieldName:
 		return m.OldName(ctx)
+	case user.FieldSocial:
+		return m.OldSocial(ctx)
 	case user.FieldAddress:
 		return m.OldAddress(ctx)
 	}
@@ -304,6 +348,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetName(v)
+		return nil
+	case user.FieldSocial:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSocial(v)
 		return nil
 	case user.FieldAddress:
 		v, ok := value.(string)
@@ -372,6 +423,9 @@ func (m *UserMutation) ResetField(name string) error {
 	switch name {
 	case user.FieldName:
 		m.ResetName()
+		return nil
+	case user.FieldSocial:
+		m.ResetSocial()
 		return nil
 	case user.FieldAddress:
 		m.ResetAddress()

@@ -18,6 +18,8 @@ type User struct {
 	ID int `json:"id,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
+	// Social holds the value of the "social" field.
+	Social string `json:"social,omitempty"`
 	// Address holds the value of the "address" field.
 	Address      string `json:"address,omitempty"`
 	selectValues sql.SelectValues
@@ -30,7 +32,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case user.FieldID:
 			values[i] = new(sql.NullInt64)
-		case user.FieldName, user.FieldAddress:
+		case user.FieldName, user.FieldSocial, user.FieldAddress:
 			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -58,6 +60,12 @@ func (u *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				u.Name = value.String
+			}
+		case user.FieldSocial:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field social", values[i])
+			} else if value.Valid {
+				u.Social = value.String
 			}
 		case user.FieldAddress:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -103,6 +111,9 @@ func (u *User) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", u.ID))
 	builder.WriteString("name=")
 	builder.WriteString(u.Name)
+	builder.WriteString(", ")
+	builder.WriteString("social=")
+	builder.WriteString(u.Social)
 	builder.WriteString(", ")
 	builder.WriteString("address=")
 	builder.WriteString(u.Address)

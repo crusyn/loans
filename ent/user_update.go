@@ -41,6 +41,20 @@ func (uu *UserUpdate) SetNillableName(s *string) *UserUpdate {
 	return uu
 }
 
+// SetSocial sets the "social" field.
+func (uu *UserUpdate) SetSocial(s string) *UserUpdate {
+	uu.mutation.SetSocial(s)
+	return uu
+}
+
+// SetNillableSocial sets the "social" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableSocial(s *string) *UserUpdate {
+	if s != nil {
+		uu.SetSocial(*s)
+	}
+	return uu
+}
+
 // SetAddress sets the "address" field.
 func (uu *UserUpdate) SetAddress(s string) *UserUpdate {
 	uu.mutation.SetAddress(s)
@@ -105,6 +119,9 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if value, ok := uu.mutation.Name(); ok {
 		_spec.SetField(user.FieldName, field.TypeString, value)
 	}
+	if value, ok := uu.mutation.Social(); ok {
+		_spec.SetField(user.FieldSocial, field.TypeString, value)
+	}
 	if value, ok := uu.mutation.Address(); ok {
 		_spec.SetField(user.FieldAddress, field.TypeString, value)
 	}
@@ -141,6 +158,20 @@ func (uuo *UserUpdateOne) SetName(s string) *UserUpdateOne {
 func (uuo *UserUpdateOne) SetNillableName(s *string) *UserUpdateOne {
 	if s != nil {
 		uuo.SetName(*s)
+	}
+	return uuo
+}
+
+// SetSocial sets the "social" field.
+func (uuo *UserUpdateOne) SetSocial(s string) *UserUpdateOne {
+	uuo.mutation.SetSocial(s)
+	return uuo
+}
+
+// SetNillableSocial sets the "social" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableSocial(s *string) *UserUpdateOne {
+	if s != nil {
+		uuo.SetSocial(*s)
 	}
 	return uuo
 }
@@ -238,6 +269,9 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	if value, ok := uuo.mutation.Name(); ok {
 		_spec.SetField(user.FieldName, field.TypeString, value)
+	}
+	if value, ok := uuo.mutation.Social(); ok {
+		_spec.SetField(user.FieldSocial, field.TypeString, value)
 	}
 	if value, ok := uuo.mutation.Address(); ok {
 		_spec.SetField(user.FieldAddress, field.TypeString, value)

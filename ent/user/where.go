@@ -57,6 +57,11 @@ func Name(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldName, v))
 }
 
+// Social applies equality check predicate on the "social" field. It's identical to SocialEQ.
+func Social(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldSocial, v))
+}
+
 // Address applies equality check predicate on the "address" field. It's identical to AddressEQ.
 func Address(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldAddress, v))
@@ -125,6 +130,71 @@ func NameEqualFold(v string) predicate.User {
 // NameContainsFold applies the ContainsFold predicate on the "name" field.
 func NameContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldName, v))
+}
+
+// SocialEQ applies the EQ predicate on the "social" field.
+func SocialEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldSocial, v))
+}
+
+// SocialNEQ applies the NEQ predicate on the "social" field.
+func SocialNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldSocial, v))
+}
+
+// SocialIn applies the In predicate on the "social" field.
+func SocialIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldSocial, vs...))
+}
+
+// SocialNotIn applies the NotIn predicate on the "social" field.
+func SocialNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldSocial, vs...))
+}
+
+// SocialGT applies the GT predicate on the "social" field.
+func SocialGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldSocial, v))
+}
+
+// SocialGTE applies the GTE predicate on the "social" field.
+func SocialGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldSocial, v))
+}
+
+// SocialLT applies the LT predicate on the "social" field.
+func SocialLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldSocial, v))
+}
+
+// SocialLTE applies the LTE predicate on the "social" field.
+func SocialLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldSocial, v))
+}
+
+// SocialContains applies the Contains predicate on the "social" field.
+func SocialContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldSocial, v))
+}
+
+// SocialHasPrefix applies the HasPrefix predicate on the "social" field.
+func SocialHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldSocial, v))
+}
+
+// SocialHasSuffix applies the HasSuffix predicate on the "social" field.
+func SocialHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldSocial, v))
+}
+
+// SocialEqualFold applies the EqualFold predicate on the "social" field.
+func SocialEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldSocial, v))
+}
+
+// SocialContainsFold applies the ContainsFold predicate on the "social" field.
+func SocialContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldSocial, v))
 }
 
 // AddressEQ applies the EQ predicate on the "address" field.
