@@ -6,5 +6,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// Loan is the predicate function for loan builders.
+type Loan func(*sql.Selector)
+
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

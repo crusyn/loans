@@ -2,6 +2,7 @@ package schema
 
 import (
 	"entgo.io/ent"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 )
 
@@ -14,7 +15,7 @@ type User struct {
 func (User) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("name"),
-		// Having a unique social security number ensures we don't insert the same user twice.
+		// TODO: Having a unique social security number ensures we don't insert the same user twice.
 		// We should remember to hash the social and only store the last 4 digits
 		// before we take this to production.
 		field.String("social").Unique(),
@@ -25,5 +26,7 @@ func (User) Fields() []ent.Field {
 
 // Edges of the User.
 func (User) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		edge.To("loans", Loan.Type),
+	}
 }

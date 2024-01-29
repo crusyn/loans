@@ -8,6 +8,28 @@ import (
 )
 
 var (
+	// LoansColumns holds the columns for the "loans" table.
+	LoansColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "amount", Type: field.TypeInt},
+		{Name: "rate", Type: field.TypeFloat64},
+		{Name: "term", Type: field.TypeInt},
+		{Name: "borrower_id", Type: field.TypeInt},
+	}
+	// LoansTable holds the schema information for the "loans" table.
+	LoansTable = &schema.Table{
+		Name:       "loans",
+		Columns:    LoansColumns,
+		PrimaryKey: []*schema.Column{LoansColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "loans_users_loans",
+				Columns:    []*schema.Column{LoansColumns[4]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -23,9 +45,11 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		LoansTable,
 		UsersTable,
 	}
 )
 
 func init() {
+	LoansTable.ForeignKeys[0].RefTable = UsersTable
 }

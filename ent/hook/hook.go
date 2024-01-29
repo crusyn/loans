@@ -9,6 +9,18 @@ import (
 	"github.com/crusyn/loans/ent"
 )
 
+// The LoanFunc type is an adapter to allow the use of ordinary
+// function as Loan mutator.
+type LoanFunc func(context.Context, *ent.LoanMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LoanFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LoanMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LoanMutation", m)
+}
+
 // The UserFunc type is an adapter to allow the use of ordinary
 // function as User mutator.
 type UserFunc func(context.Context, *ent.UserMutation) (ent.Value, error)

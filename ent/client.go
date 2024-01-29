@@ -14,6 +14,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/crusyn/loans/ent/loan"
 	"github.com/crusyn/loans/ent/user"
 )
 
@@ -22,6 +24,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// Loan is the client for interacting with the Loan builders.
+	Loan *LoanClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 }
@@ -35,6 +39,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.Loan = NewLoanClient(c.config)
 	c.User = NewUserClient(c.config)
 }
 
@@ -128,6 +133,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:    ctx,
 		config: cfg,
+		Loan:   NewLoanClient(cfg),
 		User:   NewUserClient(cfg),
 	}, nil
 }
@@ -148,6 +154,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:    ctx,
 		config: cfg,
+		Loan:   NewLoanClient(cfg),
 		User:   NewUserClient(cfg),
 	}, nil
 }
@@ -155,7 +162,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		User.
+//		Loan.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -177,22 +184,175 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
+	c.Loan.Use(hooks...)
 	c.User.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
+	c.Loan.Intercept(interceptors...)
 	c.User.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *LoanMutation:
+		return c.Loan.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// LoanClient is a client for the Loan schema.
+type LoanClient struct {
+	config
+}
+
+// NewLoanClient returns a client for the Loan from the given config.
+func NewLoanClient(c config) *LoanClient {
+	return &LoanClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `loan.Hooks(f(g(h())))`.
+func (c *LoanClient) Use(hooks ...Hook) {
+	c.hooks.Loan = append(c.hooks.Loan, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `loan.Intercept(f(g(h())))`.
+func (c *LoanClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Loan = append(c.inters.Loan, interceptors...)
+}
+
+// Create returns a builder for creating a Loan entity.
+func (c *LoanClient) Create() *LoanCreate {
+	mutation := newLoanMutation(c.config, OpCreate)
+	return &LoanCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Loan entities.
+func (c *LoanClient) CreateBulk(builders ...*LoanCreate) *LoanCreateBulk {
+	return &LoanCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LoanClient) MapCreateBulk(slice any, setFunc func(*LoanCreate, int)) *LoanCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LoanCreateBulk{err: fmt.Errorf("calling to LoanClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LoanCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LoanCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Loan.
+func (c *LoanClient) Update() *LoanUpdate {
+	mutation := newLoanMutation(c.config, OpUpdate)
+	return &LoanUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LoanClient) UpdateOne(l *Loan) *LoanUpdateOne {
+	mutation := newLoanMutation(c.config, OpUpdateOne, withLoan(l))
+	return &LoanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LoanClient) UpdateOneID(id int) *LoanUpdateOne {
+	mutation := newLoanMutation(c.config, OpUpdateOne, withLoanID(id))
+	return &LoanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Loan.
+func (c *LoanClient) Delete() *LoanDelete {
+	mutation := newLoanMutation(c.config, OpDelete)
+	return &LoanDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LoanClient) DeleteOne(l *Loan) *LoanDeleteOne {
+	return c.DeleteOneID(l.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LoanClient) DeleteOneID(id int) *LoanDeleteOne {
+	builder := c.Delete().Where(loan.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LoanDeleteOne{builder}
+}
+
+// Query returns a query builder for Loan.
+func (c *LoanClient) Query() *LoanQuery {
+	return &LoanQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLoan},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Loan entity by its id.
+func (c *LoanClient) Get(ctx context.Context, id int) (*Loan, error) {
+	return c.Query().Where(loan.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LoanClient) GetX(ctx context.Context, id int) *Loan {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryBorrower queries the borrower edge of a Loan.
+func (c *LoanClient) QueryBorrower(l *Loan) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := l.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(loan.Table, loan.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, loan.BorrowerTable, loan.BorrowerColumn),
+		)
+		fromV = sqlgraph.Neighbors(l.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *LoanClient) Hooks() []Hook {
+	return c.hooks.Loan
+}
+
+// Interceptors returns the client interceptors.
+func (c *LoanClient) Interceptors() []Interceptor {
+	return c.inters.Loan
+}
+
+func (c *LoanClient) mutate(ctx context.Context, m *LoanMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LoanCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LoanUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LoanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LoanDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Loan mutation op: %q", m.Op())
 	}
 }
 
@@ -304,6 +464,22 @@ func (c *UserClient) GetX(ctx context.Context, id int) *User {
 	return obj
 }
 
+// QueryLoans queries the loans edge of a User.
+func (c *UserClient) QueryLoans(u *User) *LoanQuery {
+	query := (&LoanClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(loan.Table, loan.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.LoansTable, user.LoansColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UserClient) Hooks() []Hook {
 	return c.hooks.User
@@ -332,9 +508,9 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		User []ent.Hook
+		Loan, User []ent.Hook
 	}
 	inters struct {
-		User []ent.Interceptor
+		Loan, User []ent.Interceptor
 	}
 )

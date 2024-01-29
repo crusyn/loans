@@ -4,6 +4,7 @@ package user
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/crusyn/loans/ent/predicate"
 )
 
@@ -270,6 +271,29 @@ func AddressEqualFold(v string) predicate.User {
 // AddressContainsFold applies the ContainsFold predicate on the "address" field.
 func AddressContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldAddress, v))
+}
+
+// HasLoans applies the HasEdge predicate on the "loans" edge.
+func HasLoans() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, LoansTable, LoansColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasLoansWith applies the HasEdge predicate on the "loans" edge with a given conditions (other predicates).
+func HasLoansWith(preds ...predicate.Loan) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newLoansStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

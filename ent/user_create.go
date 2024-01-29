@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/crusyn/loans/ent/loan"
 	"github.com/crusyn/loans/ent/user"
 )
 
@@ -43,6 +44,21 @@ func (uc *UserCreate) SetNillableAddress(s *string) *UserCreate {
 		uc.SetAddress(*s)
 	}
 	return uc
+}
+
+// AddLoanIDs adds the "loans" edge to the Loan entity by IDs.
+func (uc *UserCreate) AddLoanIDs(ids ...int) *UserCreate {
+	uc.mutation.AddLoanIDs(ids...)
+	return uc
+}
+
+// AddLoans adds the "loans" edges to the Loan entity.
+func (uc *UserCreate) AddLoans(l ...*Loan) *UserCreate {
+	ids := make([]int, len(l))
+	for i := range l {
+		ids[i] = l[i].ID
+	}
+	return uc.AddLoanIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -122,6 +138,22 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := uc.mutation.Address(); ok {
 		_spec.SetField(user.FieldAddress, field.TypeString, value)
 		_node.Address = value
+	}
+	if nodes := uc.mutation.LoansIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LoansTable,
+			Columns: []string{user.LoansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

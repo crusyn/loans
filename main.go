@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/crusyn/loans/ent"
+	"github.com/crusyn/loans/handlers"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 
@@ -23,7 +24,7 @@ func main() {
 		log.Fatal().Msgf("failed creating schema resources: %v", err)
 	}
 
-	h := Handler{
+	h := handlers.Handler{
 		Ent: client,
 	}
 
@@ -36,6 +37,18 @@ func main() {
 	})
 
 	r.POST("/user", h.CreateUser)
+	r.POST("/loan", h.CreateLoan)
+	r.GET("/loan/:id", h.GetLoan)
+	r.GET("/loan/:id/schedule", h.GetLoanSchedule)
+	r.GET("/loan/:id/summary/:year/:month")
 
 	r.Run() // listen and serve on 0.0.0.0:8080
 }
+
+// func main() {
+// 	s, _ := handlers.CreateAmortizationSchedule(1212530.0, 0.115, 360)
+
+// 	for _, r := range s {
+// 		fmt.Printf("r: %v\n", r)
+// 	}
+// }

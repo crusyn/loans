@@ -21,8 +21,29 @@ type User struct {
 	// Social holds the value of the "social" field.
 	Social string `json:"social,omitempty"`
 	// Address holds the value of the "address" field.
-	Address      string `json:"address,omitempty"`
+	Address string `json:"address,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the UserQuery when eager-loading is set.
+	Edges        UserEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// UserEdges holds the relations/edges for other nodes in the graph.
+type UserEdges struct {
+	// Loans holds the value of the loans edge.
+	Loans []*Loan `json:"loans,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// LoansOrErr returns the Loans value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) LoansOrErr() ([]*Loan, error) {
+	if e.loadedTypes[0] {
+		return e.Loans, nil
+	}
+	return nil, &NotLoadedError{edge: "loans"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -84,6 +105,11 @@ func (u *User) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (u *User) Value(name string) (ent.Value, error) {
 	return u.selectValues.Get(name)
+}
+
+// QueryLoans queries the "loans" edge of the User entity.
+func (u *User) QueryLoans() *LoanQuery {
+	return NewUserClient(u.config).QueryLoans(u)
 }
 
 // Update returns a builder for updating this User.

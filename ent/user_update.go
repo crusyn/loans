@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/crusyn/loans/ent/loan"
 	"github.com/crusyn/loans/ent/predicate"
 	"github.com/crusyn/loans/ent/user"
 )
@@ -75,9 +76,45 @@ func (uu *UserUpdate) ClearAddress() *UserUpdate {
 	return uu
 }
 
+// AddLoanIDs adds the "loans" edge to the Loan entity by IDs.
+func (uu *UserUpdate) AddLoanIDs(ids ...int) *UserUpdate {
+	uu.mutation.AddLoanIDs(ids...)
+	return uu
+}
+
+// AddLoans adds the "loans" edges to the Loan entity.
+func (uu *UserUpdate) AddLoans(l ...*Loan) *UserUpdate {
+	ids := make([]int, len(l))
+	for i := range l {
+		ids[i] = l[i].ID
+	}
+	return uu.AddLoanIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uu *UserUpdate) Mutation() *UserMutation {
 	return uu.mutation
+}
+
+// ClearLoans clears all "loans" edges to the Loan entity.
+func (uu *UserUpdate) ClearLoans() *UserUpdate {
+	uu.mutation.ClearLoans()
+	return uu
+}
+
+// RemoveLoanIDs removes the "loans" edge to Loan entities by IDs.
+func (uu *UserUpdate) RemoveLoanIDs(ids ...int) *UserUpdate {
+	uu.mutation.RemoveLoanIDs(ids...)
+	return uu
+}
+
+// RemoveLoans removes "loans" edges to Loan entities.
+func (uu *UserUpdate) RemoveLoans(l ...*Loan) *UserUpdate {
+	ids := make([]int, len(l))
+	for i := range l {
+		ids[i] = l[i].ID
+	}
+	return uu.RemoveLoanIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -127,6 +164,51 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if uu.mutation.AddressCleared() {
 		_spec.ClearField(user.FieldAddress, field.TypeString)
+	}
+	if uu.mutation.LoansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LoansTable,
+			Columns: []string{user.LoansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loan.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedLoansIDs(); len(nodes) > 0 && !uu.mutation.LoansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LoansTable,
+			Columns: []string{user.LoansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.LoansIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LoansTable,
+			Columns: []string{user.LoansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, uu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -196,9 +278,45 @@ func (uuo *UserUpdateOne) ClearAddress() *UserUpdateOne {
 	return uuo
 }
 
+// AddLoanIDs adds the "loans" edge to the Loan entity by IDs.
+func (uuo *UserUpdateOne) AddLoanIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.AddLoanIDs(ids...)
+	return uuo
+}
+
+// AddLoans adds the "loans" edges to the Loan entity.
+func (uuo *UserUpdateOne) AddLoans(l ...*Loan) *UserUpdateOne {
+	ids := make([]int, len(l))
+	for i := range l {
+		ids[i] = l[i].ID
+	}
+	return uuo.AddLoanIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uuo *UserUpdateOne) Mutation() *UserMutation {
 	return uuo.mutation
+}
+
+// ClearLoans clears all "loans" edges to the Loan entity.
+func (uuo *UserUpdateOne) ClearLoans() *UserUpdateOne {
+	uuo.mutation.ClearLoans()
+	return uuo
+}
+
+// RemoveLoanIDs removes the "loans" edge to Loan entities by IDs.
+func (uuo *UserUpdateOne) RemoveLoanIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.RemoveLoanIDs(ids...)
+	return uuo
+}
+
+// RemoveLoans removes "loans" edges to Loan entities.
+func (uuo *UserUpdateOne) RemoveLoans(l ...*Loan) *UserUpdateOne {
+	ids := make([]int, len(l))
+	for i := range l {
+		ids[i] = l[i].ID
+	}
+	return uuo.RemoveLoanIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -278,6 +396,51 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	if uuo.mutation.AddressCleared() {
 		_spec.ClearField(user.FieldAddress, field.TypeString)
+	}
+	if uuo.mutation.LoansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LoansTable,
+			Columns: []string{user.LoansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loan.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedLoansIDs(); len(nodes) > 0 && !uuo.mutation.LoansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LoansTable,
+			Columns: []string{user.LoansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.LoansIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LoansTable,
+			Columns: []string{user.LoansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &User{config: uuo.config}
 	_spec.Assign = _node.assignValues
