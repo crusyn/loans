@@ -20,3 +20,8 @@ http://localhost:8080/swagger/index.html
 ```
 go test ./...
 ```
+
+## monthly payment calcuation
+
+In any instance when rounding was required I opted to round up to be sure the bank is paid enough interest and principal.
+In order to get the whole principal paid in the loan term I needed to add a penny to the monthly payment and then credited the aggregate overpayment in the last month.
