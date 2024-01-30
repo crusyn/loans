@@ -1,0 +1,336 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/loan/": {
+            "post": {
+                "description": "Creates a Loan associated with a specific borrower",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Creates Loan",
+                "parameters": [
+                    {
+                        "description": "New Loan Request",
+                        "name": "newLoanRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.newLoanRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.newLoanResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/loan/{loanid}": {
+            "get": {
+                "description": "Gets Loan Terms",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Gets Loan Information",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Loan Id",
+                        "name": "loanid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.loanResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/loan/{loanid}/month/{month}": {
+            "get": {
+                "description": "Gets aggregate loan data given a particular month",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Gets Loan Month Summary",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Loan Id",
+                        "name": "loanid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Month Number",
+                        "name": "month",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.loanMonthSummaryResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/loan/{loanid}/schedule": {
+            "get": {
+                "description": "Gets the loans schedule by month",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Gets Loan Schedule",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Loan Id",
+                        "name": "loanid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.loanMonthResponseItem"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/loan/{loanid}/share": {
+            "post": {
+                "description": "Shares loan with another user that is not the borrower",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Shares Loan",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Loan Id",
+                        "name": "loanid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Share User Request",
+                        "name": "loanShareRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.loanShareRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/user": {
+            "post": {
+                "description": "Creates User given a `newUserRequest`",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Creates User",
+                "parameters": [
+                    {
+                        "description": "New User Request",
+                        "name": "newUserRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.newUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.newUserResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/{userid}/loans": {
+            "get": {
+                "description": "Gets Loans associated with a specific user.  The user may be the borrower\nor the loan may be shared with that user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Gets Loans by User",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User Id",
+                        "name": "userid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.loanResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "handlers.loanMonthResponseItem": {
+            "type": "object",
+            "properties": {
+                "month": {
+                    "type": "integer"
+                },
+                "monthlyPayment": {
+                    "type": "number"
+                },
+                "remainingBalance": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.loanMonthSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "endingBalance": {
+                    "type": "number"
+                },
+                "totalInterestPaid": {
+                    "type": "number"
+                },
+                "totalPrincipalPaid": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.loanResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "rate": {
+                    "type": "number"
+                },
+                "term": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.loanShareRequest": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.newLoanRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "borrowerID": {
+                    "type": "integer"
+                },
+                "months": {
+                    "type": "integer"
+                },
+                "rate": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.newLoanResponse": {
+            "type": "object",
+            "properties": {
+                "newLoanId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.newUserRequest": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "social": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.newUserResponse": {
+            "type": "object",
+            "properties": {
+                "newUserId": {
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}

@@ -18,6 +18,10 @@ type Handler struct {
 	Ent *ent.Client
 }
 
+type ErrorResponse struct {
+	Message string `json:"message"`
+}
+
 type newUserRequest struct {
 	Name    string `json:"name"`
 	Social  string `json:"social"`
@@ -28,44 +32,14 @@ type newUserResponse struct {
 	UserId int `json:"newUserId"`
 }
 
-type newLoanRequest struct {
-	Amount   float64 `json:"amount"`
-	Rate     float64 `json:"rate"`
-	Months   int     `json:"months"`
-	Borrower int     `json:"borrowerID"`
-}
-
-type loanShareRequest struct {
-	UserId int `json:"id"`
-}
-
-type loanResponse struct {
-	Id     int     `json:"id"`
-	Amount float64 `json:"amount"`
-	Rate   float64 `json:"rate"`
-	Term   int     `json:"term"`
-}
-
-type loanMonthResponseItem struct {
-	Month            int     `json:"month"`
-	RemainingBalance float64 `json:"remainingBalance"`
-	MonthlyPayment   float64 `json:"monthlyPayment"`
-}
-
-type loanMonthSummaryResponse struct {
-	EndingBalance      float64 `json:"endingBalance"`
-	TotalPrincipalPaid float64 `json:"totalPrincipalPaid"`
-	TotalInterestPaid  float64 `json:"totalInterestPaid"`
-}
-
-type ErrorResponse struct {
-	Message string `json:"message"`
-}
-
-// @Summary Creates User given a `newUserRequest`
+// @Summary Creates User
+// @Schemes
+// @Description Creates User given a `newUserRequest`
 // @Accept json
 // @Produce json
-// @Success 200 {newUserResponse}
+// @Param newUserRequest body newUserRequest true "New User Request"
+// @Success 200 {object} newUserResponse
+// @Router /user [post]
 func (h Handler) CreateUser(ctx *gin.Context) {
 	var newUser newUserRequest
 	if err := ctx.BindJSON(&newUser); err != nil {
@@ -109,6 +83,25 @@ func (h Handler) CreateUser(ctx *gin.Context) {
 
 }
 
+type newLoanRequest struct {
+	Amount   float64 `json:"amount"`
+	Rate     float64 `json:"rate"`
+	Months   int     `json:"months"`
+	Borrower int     `json:"borrowerID"`
+}
+
+type newLoanResponse struct {
+	LoanId int `json:"newLoanId"`
+}
+
+// @Summary Creates Loan
+// @Schemes
+// @Description Creates a Loan associated with a specific borrower
+// @Accept json
+// @Produce json
+// @Param newLoanRequest body newLoanRequest true "New Loan Request"
+// @Success 200 {object} newLoanResponse
+// @Router /loan/ [post]
 func (h Handler) CreateLoan(ctx *gin.Context) {
 	var newLoan newLoanRequest
 	if err := ctx.BindJSON(&newLoan); err != nil {
@@ -165,11 +158,26 @@ func (h Handler) CreateLoan(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"newLoanID": l.ID,
+	ctx.JSON(http.StatusOK, newLoanResponse{
+		LoanId: l.ID,
 	})
 }
 
+type loanResponse struct {
+	Id     int     `json:"id"`
+	Amount float64 `json:"amount"`
+	Rate   float64 `json:"rate"`
+	Term   int     `json:"term"`
+}
+
+// @Summary Gets Loan Information
+// @Schemes
+// @Description Gets Loan Terms
+// @Accept json
+// @Produce json
+// @Param loanid path int true "Loan Id"
+// @Success 200 {object} loanResponse
+// @Router /loan/{loanid} [get]
 func (h Handler) GetLoan(ctx *gin.Context) {
 	id := ctx.Param("id")
 
@@ -197,6 +205,15 @@ func (h Handler) GetLoan(ctx *gin.Context) {
 	})
 }
 
+// @Summary Gets Loans by User
+// @Schemes
+// @Description Gets Loans associated with a specific user.  The user may be the borrower
+// @Description or the loan may be shared with that user.
+// @Accept json
+// @Produce json
+// @Param userid path int true "User Id"
+// @Success 200 {array} loanResponse
+// @Router /user/{userid}/loans [get]
 func (h Handler) GetLoans(ctx *gin.Context) {
 	id := ctx.Param("id")
 
@@ -267,6 +284,20 @@ func (h Handler) GetLoans(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, response)
 }
 
+type loanMonthResponseItem struct {
+	Month            int     `json:"month"`
+	RemainingBalance float64 `json:"remainingBalance"`
+	MonthlyPayment   float64 `json:"monthlyPayment"`
+}
+
+// @Summary Gets Loan Schedule
+// @Schemes
+// @Description Gets the loans schedule by month
+// @Accept json
+// @Produce json
+// @Param loanid path int true "Loan Id"
+// @Success 200 {array} loanMonthResponseItem
+// @Router /loan/{loanid}/schedule [get]
 func (h Handler) GetLoanSchedule(ctx *gin.Context) {
 	id := ctx.Param("id")
 
@@ -308,6 +339,21 @@ func (h Handler) GetLoanSchedule(ctx *gin.Context) {
 
 }
 
+type loanMonthSummaryResponse struct {
+	EndingBalance      float64 `json:"endingBalance"`
+	TotalPrincipalPaid float64 `json:"totalPrincipalPaid"`
+	TotalInterestPaid  float64 `json:"totalInterestPaid"`
+}
+
+// @Summary Gets Loan Month Summary
+// @Schemes
+// @Description Gets aggregate loan data given a particular month
+// @Accept json
+// @Produce json
+// @Param loanid path int true "Loan Id"
+// @Param month path int true "Month Number"
+// @Success 200 {object} loanMonthSummaryResponse
+// @Router /loan/{loanid}/month/{month} [get]
 func (h Handler) GetMonthSummary(ctx *gin.Context) {
 	id := ctx.Param("id")
 
@@ -358,6 +404,19 @@ func (h Handler) GetMonthSummary(ctx *gin.Context) {
 	})
 }
 
+type loanShareRequest struct {
+	UserId int `json:"id"`
+}
+
+// @Summary Shares Loan
+// @Schemes
+// @Description Shares loan with another user that is not the borrower
+// @Accept json
+// @Produce json
+// @Param loanid path int true "Loan Id"
+// @Param loanShareRequest body loanShareRequest true "Share User Request"
+// @Success 200
+// @Router /loan/{loanid}/share [post]
 func (h Handler) ShareLoan(ctx *gin.Context) {
 	id := ctx.Param("id")
 

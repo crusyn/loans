@@ -4,10 +4,14 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/crusyn/loans/docs"
 	"github.com/crusyn/loans/ent"
 	"github.com/crusyn/loans/handlers"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -30,6 +34,9 @@ func main() {
 
 	// Server init
 	r := gin.Default()
+	docs.SwaggerInfo.BasePath = "/"
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+
 	r.GET("/", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "server is up",
