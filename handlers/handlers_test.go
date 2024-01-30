@@ -16,6 +16,8 @@ import (
 	"github.com/crusyn/loans/ent"
 	"github.com/crusyn/loans/ent/user"
 	"github.com/gin-gonic/gin"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // mock gin context

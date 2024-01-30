@@ -24,6 +24,10 @@ type newUserRequest struct {
 	Address string `json:"address"`
 }
 
+type newUserResponse struct {
+	UserId int `json:"newUserId"`
+}
+
 type newLoanRequest struct {
 	Amount   float64 `json:"amount"`
 	Rate     float64 `json:"rate"`
@@ -48,35 +52,40 @@ type loanMonthResponseItem struct {
 	MonthlyPayment   float64 `json:"monthlyPayment"`
 }
 
-type loanMonthSummary struct {
+type loanMonthSummaryResponse struct {
 	EndingBalance      float64 `json:"endingBalance"`
 	TotalPrincipalPaid float64 `json:"totalPrincipalPaid"`
 	TotalInterestPaid  float64 `json:"totalInterestPaid"`
 }
 
+type ErrorResponse struct {
+	Message string `json:"message"`
+}
+
+// @Summary Creates User given a `newUserRequest`
+// @Accept json
+// @Produce json
+// @Success 200 {newUserResponse}
 func (h Handler) CreateUser(ctx *gin.Context) {
-
 	var newUser newUserRequest
-
 	if err := ctx.BindJSON(&newUser); err != nil {
 		log.Debug().Msgf("%v", err)
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "user input malformed",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "user input malformed",
 		})
 		return
 	}
 
 	socialExists, err := h.Ent.User.Query().Where(user.Social(newUser.Social)).Exist(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "internal error",
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "internal error",
 		})
 		return
 	}
-
 	if socialExists {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "user with social security number already exists",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "user with social security number already exists",
 		})
 		return
 	}
@@ -86,65 +95,59 @@ func (h Handler) CreateUser(ctx *gin.Context) {
 		SetSocial(newUser.Social).
 		SetAddress(newUser.Address).
 		Save(ctx)
-
 	if err != nil {
 		log.Err(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "internal error",
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "internal error",
 		})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"newUserID": u.ID,
+	ctx.JSON(http.StatusOK, newUserResponse{
+		UserId: u.ID,
 	})
 
 }
 
 func (h Handler) CreateLoan(ctx *gin.Context) {
-
 	var newLoan newLoanRequest
-
 	if err := ctx.BindJSON(&newLoan); err != nil {
 		log.Debug().Msgf("%v", err)
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "new loan input malformed",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "new loan input malformed",
 		})
 		return
 	}
 
 	if newLoan.Amount <= 0 {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "loan amount must be positive",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "loan amount must be positive",
 		})
 		return
 	}
-
 	if newLoan.Rate <= 0 {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "rate must be positive",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "rate must be positive",
 		})
 		return
 	}
-
 	if newLoan.Months <= 0 {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "term must be positive",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "term must be positive",
 		})
 		return
 	}
 
 	userExists, err := h.Ent.User.Query().Where(user.ID(newLoan.Borrower)).Exist(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "internal error",
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "internal error",
 		})
 		return
 	}
-
 	if !userExists {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "borrower doesn't exist",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "borrower doesn't exist",
 		})
 		return
 	}
@@ -156,8 +159,8 @@ func (h Handler) CreateLoan(ctx *gin.Context) {
 		SetBorrowerID(newLoan.Borrower).
 		Save(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "internal error",
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "internal error",
 		})
 		return
 	}
@@ -172,16 +175,16 @@ func (h Handler) GetLoan(ctx *gin.Context) {
 
 	i, err := strconv.Atoi(id)
 	if err != nil {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "id must be numeric",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "id must be numeric",
 		})
 		return
 	}
 
 	l, err := h.Ent.Loan.Get(ctx, i)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "could not find loan",
+		ctx.JSON(http.StatusNotFound, ErrorResponse{
+			Message: "could not find loan",
 		})
 		return
 	}
@@ -199,23 +202,23 @@ func (h Handler) GetLoans(ctx *gin.Context) {
 
 	userId, err := strconv.Atoi(id)
 	if err != nil {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "id must be numeric",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "id must be numeric",
 		})
 		return
 	}
 
 	userExists, err := h.Ent.User.Query().Where(user.ID(userId)).Exist(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "internal error",
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "internal error",
 		})
 		return
 	}
 
 	if !userExists {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "user doesn't exist",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "user doesn't exist",
 		})
 		return
 	}
@@ -224,8 +227,8 @@ func (h Handler) GetLoans(ctx *gin.Context) {
 		Where(loan.BorrowerID(userId)).
 		All(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "internal error",
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "internal error",
 		})
 		return
 	}
@@ -246,8 +249,8 @@ func (h Handler) GetLoans(ctx *gin.Context) {
 		WithLoan().
 		All(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "internal error",
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "internal error",
 		})
 		return
 	}
@@ -269,16 +272,16 @@ func (h Handler) GetLoanSchedule(ctx *gin.Context) {
 
 	i, err := strconv.Atoi(id)
 	if err != nil {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "id must be numeric",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "id must be numeric",
 		})
 		return
 	}
 
 	l, err := h.Ent.Loan.Get(ctx, i)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "could not find loan",
+		ctx.JSON(http.StatusNotFound, ErrorResponse{
+			Message: "could not find loan",
 		})
 		return
 	}
@@ -287,8 +290,8 @@ func (h Handler) GetLoanSchedule(ctx *gin.Context) {
 
 	schedule, err := CreateAmortizationSchedule(float64(l.Amount)/100, l.Rate, l.Term)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "could not generate amortization schedule",
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "could not generate amortization schedule",
 		})
 		return
 	}
@@ -310,24 +313,24 @@ func (h Handler) GetMonthSummary(ctx *gin.Context) {
 
 	i, err := strconv.Atoi(id)
 	if err != nil {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "id must be numeric",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "id must be numeric",
 		})
 		return
 	}
 
 	l, err := h.Ent.Loan.Get(ctx, i)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "could not find loan",
+		ctx.JSON(http.StatusNotFound, ErrorResponse{
+			Message: "could not find loan",
 		})
 		return
 	}
 
 	schedule, err := CreateAmortizationSchedule(float64(l.Amount)/100, l.Rate, l.Term)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "could not generate amortization schedule",
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "could not generate amortization schedule",
 		})
 		return
 	}
@@ -335,20 +338,20 @@ func (h Handler) GetMonthSummary(ctx *gin.Context) {
 	month := ctx.Param("number")
 	n, err := strconv.Atoi(month)
 	if err != nil {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "month number must be numeric",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "month number must be numeric",
 		})
 		return
 	}
 
 	if n > l.Term {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "month number cannot be greater than term",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "month number cannot be greater than term",
 		})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, loanMonthSummary{
+	ctx.JSON(http.StatusOK, loanMonthSummaryResponse{
 		EndingBalance:      schedule[n-1].EndingBalance,
 		TotalPrincipalPaid: schedule[n-1].TotalPrincipalPaid,
 		TotalInterestPaid:  schedule[n-1].TotalInterestPaid,
@@ -360,8 +363,8 @@ func (h Handler) ShareLoan(ctx *gin.Context) {
 
 	loanId, err := strconv.Atoi(id)
 	if err != nil {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "loan id must be numeric",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "loan id must be numeric",
 		})
 		return
 	}
@@ -370,15 +373,23 @@ func (h Handler) ShareLoan(ctx *gin.Context) {
 		Where(loan.ID(loanId)).
 		Exist(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "internal error",
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "internal error",
 		})
 		return
 	}
 
 	if !loanExists {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "could not find loan",
+		ctx.JSON(http.StatusNotFound, ErrorResponse{
+			Message: "could not find loan",
+		})
+		return
+	}
+
+	l, err := h.Ent.Loan.Get(ctx, loanId)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "internal error",
 		})
 		return
 	}
@@ -387,23 +398,30 @@ func (h Handler) ShareLoan(ctx *gin.Context) {
 
 	if err := ctx.BindJSON(&req); err != nil {
 		log.Debug().Msgf("%v", err)
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "share request input malformed",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "share request input malformed",
+		})
+		return
+	}
+
+	if l.BorrowerID == req.UserId {
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "cannot share with borrower",
 		})
 		return
 	}
 
 	userExists, err := h.Ent.User.Query().Where(user.ID(req.UserId)).Exist(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "internal error",
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "internal error",
 		})
 		return
 	}
 
 	if !userExists {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"message": "user doesn't exist",
+		ctx.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+			Message: "user doesn't exist",
 		})
 		return
 	}
@@ -414,15 +432,15 @@ func (h Handler) ShareLoan(ctx *gin.Context) {
 			sharedloan.LoanID(loanId),
 		)).Exist(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "internal error",
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "internal error",
 		})
 		return
 	}
 
 	if loanShareExists {
-		ctx.JSON(http.StatusOK, gin.H{
-			"message": "shared loan already exists",
+		ctx.JSON(http.StatusOK, ErrorResponse{
+			Message: "shared loan already exists",
 		})
 		return
 	}
@@ -432,8 +450,8 @@ func (h Handler) ShareLoan(ctx *gin.Context) {
 		SetUserID(req.UserId).
 		Exec(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "internal error",
+		ctx.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "internal error",
 		})
 		return
 	}
@@ -445,11 +463,9 @@ func monthlyPayment(loanAmountCents int, annualInterestRate float64, termMonths 
 	if loanAmountCents <= 0 {
 		return 0, errors.New("loan amount must be positive")
 	}
-
 	if annualInterestRate <= 0 {
 		return 0, errors.New("interest rate must be positive")
 	}
-
 	if termMonths <= 0 {
 		return 0, errors.New("number of payments must be positive")
 	}

@@ -46,11 +46,3 @@ func main() {
 
 	r.Run() // listen and serve on 0.0.0.0:8080
 }
-
-// func main() {
-// 	s, _ := handlers.CreateAmortizationSchedule(1212530.0, 0.115, 360)
-
-// 	for _, r := range s {
-// 		fmt.Printf("r: %v\n", r)
-// 	}
-// }
