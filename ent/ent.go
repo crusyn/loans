@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/crusyn/loans/ent/loan"
+	"github.com/crusyn/loans/ent/sharedloan"
 	"github.com/crusyn/loans/ent/user"
 )
 
@@ -74,8 +75,9 @@ var (
 func checkColumn(table, column string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			loan.Table: loan.ValidColumn,
-			user.Table: user.ValidColumn,
+			loan.Table:       loan.ValidColumn,
+			sharedloan.Table: sharedloan.ValidColumn,
+			user.Table:       user.ValidColumn,
 		})
 	})
 	return columnCheck(table, column)

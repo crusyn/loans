@@ -22,6 +22,8 @@ const (
 	FieldBorrowerID = "borrower_id"
 	// EdgeBorrower holds the string denoting the borrower edge name in mutations.
 	EdgeBorrower = "borrower"
+	// EdgeSharedLoan holds the string denoting the shared_loan edge name in mutations.
+	EdgeSharedLoan = "shared_loan"
 	// Table holds the table name of the loan in the database.
 	Table = "loans"
 	// BorrowerTable is the table that holds the borrower relation/edge.
@@ -31,6 +33,13 @@ const (
 	BorrowerInverseTable = "users"
 	// BorrowerColumn is the table column denoting the borrower relation/edge.
 	BorrowerColumn = "borrower_id"
+	// SharedLoanTable is the table that holds the shared_loan relation/edge.
+	SharedLoanTable = "shared_loans"
+	// SharedLoanInverseTable is the table name for the SharedLoan entity.
+	// It exists in this package in order to avoid circular dependency with the "sharedloan" package.
+	SharedLoanInverseTable = "shared_loans"
+	// SharedLoanColumn is the table column denoting the shared_loan relation/edge.
+	SharedLoanColumn = "loan_id"
 )
 
 // Columns holds all SQL columns for loan fields.
@@ -86,10 +95,31 @@ func ByBorrowerField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newBorrowerStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// BySharedLoanCount orders the results by shared_loan count.
+func BySharedLoanCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSharedLoanStep(), opts...)
+	}
+}
+
+// BySharedLoan orders the results by shared_loan terms.
+func BySharedLoan(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSharedLoanStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newBorrowerStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(BorrowerInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, BorrowerTable, BorrowerColumn),
+	)
+}
+func newSharedLoanStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SharedLoanInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, SharedLoanTable, SharedLoanColumn),
 	)
 }

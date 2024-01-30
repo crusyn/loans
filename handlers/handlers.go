@@ -8,6 +8,7 @@ import (
 
 	"github.com/crusyn/loans/ent"
 	"github.com/crusyn/loans/ent/loan"
+	"github.com/crusyn/loans/ent/sharedloan"
 	"github.com/crusyn/loans/ent/user"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
@@ -28,6 +29,10 @@ type newLoanRequest struct {
 	Rate     float64 `json:"rate"`
 	Months   int     `json:"months"`
 	Borrower int     `json:"borrowerID"`
+}
+
+type loanShareRequest struct {
+	UserId int `json:"id"`
 }
 
 type loanResponse struct {
@@ -192,7 +197,7 @@ func (h Handler) GetLoan(ctx *gin.Context) {
 func (h Handler) GetLoans(ctx *gin.Context) {
 	id := ctx.Param("id")
 
-	i, err := strconv.Atoi(id)
+	userId, err := strconv.Atoi(id)
 	if err != nil {
 		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
 			"message": "id must be numeric",
@@ -200,7 +205,7 @@ func (h Handler) GetLoans(ctx *gin.Context) {
 		return
 	}
 
-	userExists, err := h.Ent.User.Query().Where(user.ID(i)).Exist(ctx)
+	userExists, err := h.Ent.User.Query().Where(user.ID(userId)).Exist(ctx)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": "internal error",
@@ -216,7 +221,7 @@ func (h Handler) GetLoans(ctx *gin.Context) {
 	}
 
 	loans, err := h.Ent.Loan.Query().
-		Where(loan.BorrowerID(i)).
+		Where(loan.BorrowerID(userId)).
 		All(ctx)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
@@ -233,6 +238,26 @@ func (h Handler) GetLoans(ctx *gin.Context) {
 			Amount: float64(l.Amount) / 100,
 			Rate:   l.Rate,
 			Term:   l.Term,
+		})
+	}
+
+	sharedLoans, err := h.Ent.SharedLoan.Query().
+		Where(sharedloan.UserID(userId)).
+		WithLoan().
+		All(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "internal error",
+		})
+		return
+	}
+
+	for _, l := range sharedLoans {
+		response = append(response, loanResponse{
+			Id:     l.Edges.Loan.ID,
+			Amount: float64(l.Edges.Loan.Amount) / 100,
+			Rate:   l.Edges.Loan.Rate,
+			Term:   l.Edges.Loan.Term,
 		})
 	}
 
@@ -328,6 +353,90 @@ func (h Handler) GetMonthSummary(ctx *gin.Context) {
 		TotalPrincipalPaid: schedule[n-1].TotalPrincipalPaid,
 		TotalInterestPaid:  schedule[n-1].TotalInterestPaid,
 	})
+}
+
+func (h Handler) ShareLoan(ctx *gin.Context) {
+	id := ctx.Param("id")
+
+	loanId, err := strconv.Atoi(id)
+	if err != nil {
+		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
+			"message": "loan id must be numeric",
+		})
+		return
+	}
+
+	loanExists, err := h.Ent.Loan.Query().
+		Where(loan.ID(loanId)).
+		Exist(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "internal error",
+		})
+		return
+	}
+
+	if !loanExists {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "could not find loan",
+		})
+		return
+	}
+
+	var req loanShareRequest
+
+	if err := ctx.BindJSON(&req); err != nil {
+		log.Debug().Msgf("%v", err)
+		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
+			"message": "share request input malformed",
+		})
+		return
+	}
+
+	userExists, err := h.Ent.User.Query().Where(user.ID(req.UserId)).Exist(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "internal error",
+		})
+		return
+	}
+
+	if !userExists {
+		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
+			"message": "user doesn't exist",
+		})
+		return
+	}
+
+	loanShareExists, err := h.Ent.SharedLoan.Query().Where(
+		sharedloan.And(
+			sharedloan.UserID(req.UserId),
+			sharedloan.LoanID(loanId),
+		)).Exist(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "internal error",
+		})
+		return
+	}
+
+	if loanShareExists {
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "shared loan already exists",
+		})
+		return
+	}
+
+	err = h.Ent.SharedLoan.Create().
+		SetLoanID(loanId).
+		SetUserID(req.UserId).
+		Exec(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "internal error",
+		})
+		return
+	}
 }
 
 func monthlyPayment(loanAmountCents int, annualInterestRate float64, termMonths int) (int, error) {

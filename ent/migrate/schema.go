@@ -30,6 +30,32 @@ var (
 			},
 		},
 	}
+	// SharedLoansColumns holds the columns for the "shared_loans" table.
+	SharedLoansColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "loan_id", Type: field.TypeInt},
+		{Name: "user_id", Type: field.TypeInt},
+	}
+	// SharedLoansTable holds the schema information for the "shared_loans" table.
+	SharedLoansTable = &schema.Table{
+		Name:       "shared_loans",
+		Columns:    SharedLoansColumns,
+		PrimaryKey: []*schema.Column{SharedLoansColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "shared_loans_loans_shared_loan",
+				Columns:    []*schema.Column{SharedLoansColumns[1]},
+				RefColumns: []*schema.Column{LoansColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "shared_loans_users_shared_loan",
+				Columns:    []*schema.Column{SharedLoansColumns[2]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -46,10 +72,13 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		LoansTable,
+		SharedLoansTable,
 		UsersTable,
 	}
 )
 
 func init() {
 	LoansTable.ForeignKeys[0].RefTable = UsersTable
+	SharedLoansTable.ForeignKeys[0].RefTable = LoansTable
+	SharedLoansTable.ForeignKeys[1].RefTable = UsersTable
 }

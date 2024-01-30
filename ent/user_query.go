@@ -13,17 +13,19 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/crusyn/loans/ent/loan"
 	"github.com/crusyn/loans/ent/predicate"
+	"github.com/crusyn/loans/ent/sharedloan"
 	"github.com/crusyn/loans/ent/user"
 )
 
 // UserQuery is the builder for querying User entities.
 type UserQuery struct {
 	config
-	ctx        *QueryContext
-	order      []user.OrderOption
-	inters     []Interceptor
-	predicates []predicate.User
-	withLoans  *LoanQuery
+	ctx            *QueryContext
+	order          []user.OrderOption
+	inters         []Interceptor
+	predicates     []predicate.User
+	withLoans      *LoanQuery
+	withSharedLoan *SharedLoanQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -75,6 +77,28 @@ func (uq *UserQuery) QueryLoans() *LoanQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(loan.Table, loan.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.LoansTable, user.LoansColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QuerySharedLoan chains the current query on the "shared_loan" edge.
+func (uq *UserQuery) QuerySharedLoan() *SharedLoanQuery {
+	query := (&SharedLoanClient{config: uq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := uq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := uq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(sharedloan.Table, sharedloan.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.SharedLoanTable, user.SharedLoanColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
 		return fromU, nil
@@ -269,12 +293,13 @@ func (uq *UserQuery) Clone() *UserQuery {
 		return nil
 	}
 	return &UserQuery{
-		config:     uq.config,
-		ctx:        uq.ctx.Clone(),
-		order:      append([]user.OrderOption{}, uq.order...),
-		inters:     append([]Interceptor{}, uq.inters...),
-		predicates: append([]predicate.User{}, uq.predicates...),
-		withLoans:  uq.withLoans.Clone(),
+		config:         uq.config,
+		ctx:            uq.ctx.Clone(),
+		order:          append([]user.OrderOption{}, uq.order...),
+		inters:         append([]Interceptor{}, uq.inters...),
+		predicates:     append([]predicate.User{}, uq.predicates...),
+		withLoans:      uq.withLoans.Clone(),
+		withSharedLoan: uq.withSharedLoan.Clone(),
 		// clone intermediate query.
 		sql:  uq.sql.Clone(),
 		path: uq.path,
@@ -289,6 +314,17 @@ func (uq *UserQuery) WithLoans(opts ...func(*LoanQuery)) *UserQuery {
 		opt(query)
 	}
 	uq.withLoans = query
+	return uq
+}
+
+// WithSharedLoan tells the query-builder to eager-load the nodes that are connected to
+// the "shared_loan" edge. The optional arguments are used to configure the query builder of the edge.
+func (uq *UserQuery) WithSharedLoan(opts ...func(*SharedLoanQuery)) *UserQuery {
+	query := (&SharedLoanClient{config: uq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	uq.withSharedLoan = query
 	return uq
 }
 
@@ -370,8 +406,9 @@ func (uq *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = uq.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			uq.withLoans != nil,
+			uq.withSharedLoan != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -396,6 +433,13 @@ func (uq *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := uq.loadLoans(ctx, query, nodes,
 			func(n *User) { n.Edges.Loans = []*Loan{} },
 			func(n *User, e *Loan) { n.Edges.Loans = append(n.Edges.Loans, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := uq.withSharedLoan; query != nil {
+		if err := uq.loadSharedLoan(ctx, query, nodes,
+			func(n *User) { n.Edges.SharedLoan = []*SharedLoan{} },
+			func(n *User, e *SharedLoan) { n.Edges.SharedLoan = append(n.Edges.SharedLoan, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -427,6 +471,36 @@ func (uq *UserQuery) loadLoans(ctx context.Context, query *LoanQuery, nodes []*U
 		node, ok := nodeids[fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "borrower_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (uq *UserQuery) loadSharedLoan(ctx context.Context, query *SharedLoanQuery, nodes []*User, init func(*User), assign func(*User, *SharedLoan)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(sharedloan.FieldUserID)
+	}
+	query.Where(predicate.SharedLoan(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.SharedLoanColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}

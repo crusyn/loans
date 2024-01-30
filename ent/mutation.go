@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/crusyn/loans/ent/loan"
 	"github.com/crusyn/loans/ent/predicate"
+	"github.com/crusyn/loans/ent/sharedloan"
 	"github.com/crusyn/loans/ent/user"
 )
 
@@ -24,28 +25,32 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeLoan = "Loan"
-	TypeUser = "User"
+	TypeLoan       = "Loan"
+	TypeSharedLoan = "SharedLoan"
+	TypeUser       = "User"
 )
 
 // LoanMutation represents an operation that mutates the Loan nodes in the graph.
 type LoanMutation struct {
 	config
-	op              Op
-	typ             string
-	id              *int
-	amount          *int
-	addamount       *int
-	rate            *float64
-	addrate         *float64
-	term            *int
-	addterm         *int
-	clearedFields   map[string]struct{}
-	borrower        *int
-	clearedborrower bool
-	done            bool
-	oldValue        func(context.Context) (*Loan, error)
-	predicates      []predicate.Loan
+	op                 Op
+	typ                string
+	id                 *int
+	amount             *int
+	addamount          *int
+	rate               *float64
+	addrate            *float64
+	term               *int
+	addterm            *int
+	clearedFields      map[string]struct{}
+	borrower           *int
+	clearedborrower    bool
+	shared_loan        map[int]struct{}
+	removedshared_loan map[int]struct{}
+	clearedshared_loan bool
+	done               bool
+	oldValue           func(context.Context) (*Loan, error)
+	predicates         []predicate.Loan
 }
 
 var _ ent.Mutation = (*LoanMutation)(nil)
@@ -377,6 +382,60 @@ func (m *LoanMutation) ResetBorrower() {
 	m.clearedborrower = false
 }
 
+// AddSharedLoanIDs adds the "shared_loan" edge to the SharedLoan entity by ids.
+func (m *LoanMutation) AddSharedLoanIDs(ids ...int) {
+	if m.shared_loan == nil {
+		m.shared_loan = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.shared_loan[ids[i]] = struct{}{}
+	}
+}
+
+// ClearSharedLoan clears the "shared_loan" edge to the SharedLoan entity.
+func (m *LoanMutation) ClearSharedLoan() {
+	m.clearedshared_loan = true
+}
+
+// SharedLoanCleared reports if the "shared_loan" edge to the SharedLoan entity was cleared.
+func (m *LoanMutation) SharedLoanCleared() bool {
+	return m.clearedshared_loan
+}
+
+// RemoveSharedLoanIDs removes the "shared_loan" edge to the SharedLoan entity by IDs.
+func (m *LoanMutation) RemoveSharedLoanIDs(ids ...int) {
+	if m.removedshared_loan == nil {
+		m.removedshared_loan = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.shared_loan, ids[i])
+		m.removedshared_loan[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedSharedLoan returns the removed IDs of the "shared_loan" edge to the SharedLoan entity.
+func (m *LoanMutation) RemovedSharedLoanIDs() (ids []int) {
+	for id := range m.removedshared_loan {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// SharedLoanIDs returns the "shared_loan" edge IDs in the mutation.
+func (m *LoanMutation) SharedLoanIDs() (ids []int) {
+	for id := range m.shared_loan {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetSharedLoan resets all changes to the "shared_loan" edge.
+func (m *LoanMutation) ResetSharedLoan() {
+	m.shared_loan = nil
+	m.clearedshared_loan = false
+	m.removedshared_loan = nil
+}
+
 // Where appends a list predicates to the LoanMutation builder.
 func (m *LoanMutation) Where(ps ...predicate.Loan) {
 	m.predicates = append(m.predicates, ps...)
@@ -600,9 +659,12 @@ func (m *LoanMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *LoanMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.borrower != nil {
 		edges = append(edges, loan.EdgeBorrower)
+	}
+	if m.shared_loan != nil {
+		edges = append(edges, loan.EdgeSharedLoan)
 	}
 	return edges
 }
@@ -615,27 +677,47 @@ func (m *LoanMutation) AddedIDs(name string) []ent.Value {
 		if id := m.borrower; id != nil {
 			return []ent.Value{*id}
 		}
+	case loan.EdgeSharedLoan:
+		ids := make([]ent.Value, 0, len(m.shared_loan))
+		for id := range m.shared_loan {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *LoanMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
+	if m.removedshared_loan != nil {
+		edges = append(edges, loan.EdgeSharedLoan)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *LoanMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case loan.EdgeSharedLoan:
+		ids := make([]ent.Value, 0, len(m.removedshared_loan))
+		for id := range m.removedshared_loan {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *LoanMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.clearedborrower {
 		edges = append(edges, loan.EdgeBorrower)
+	}
+	if m.clearedshared_loan {
+		edges = append(edges, loan.EdgeSharedLoan)
 	}
 	return edges
 }
@@ -646,6 +728,8 @@ func (m *LoanMutation) EdgeCleared(name string) bool {
 	switch name {
 	case loan.EdgeBorrower:
 		return m.clearedborrower
+	case loan.EdgeSharedLoan:
+		return m.clearedshared_loan
 	}
 	return false
 }
@@ -668,26 +752,515 @@ func (m *LoanMutation) ResetEdge(name string) error {
 	case loan.EdgeBorrower:
 		m.ResetBorrower()
 		return nil
+	case loan.EdgeSharedLoan:
+		m.ResetSharedLoan()
+		return nil
 	}
 	return fmt.Errorf("unknown Loan edge %s", name)
+}
+
+// SharedLoanMutation represents an operation that mutates the SharedLoan nodes in the graph.
+type SharedLoanMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	clearedFields map[string]struct{}
+	user          *int
+	cleareduser   bool
+	loan          *int
+	clearedloan   bool
+	done          bool
+	oldValue      func(context.Context) (*SharedLoan, error)
+	predicates    []predicate.SharedLoan
+}
+
+var _ ent.Mutation = (*SharedLoanMutation)(nil)
+
+// sharedloanOption allows management of the mutation configuration using functional options.
+type sharedloanOption func(*SharedLoanMutation)
+
+// newSharedLoanMutation creates new mutation for the SharedLoan entity.
+func newSharedLoanMutation(c config, op Op, opts ...sharedloanOption) *SharedLoanMutation {
+	m := &SharedLoanMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSharedLoan,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSharedLoanID sets the ID field of the mutation.
+func withSharedLoanID(id int) sharedloanOption {
+	return func(m *SharedLoanMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SharedLoan
+		)
+		m.oldValue = func(ctx context.Context) (*SharedLoan, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SharedLoan.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSharedLoan sets the old SharedLoan of the mutation.
+func withSharedLoan(node *SharedLoan) sharedloanOption {
+	return func(m *SharedLoanMutation) {
+		m.oldValue = func(context.Context) (*SharedLoan, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SharedLoanMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SharedLoanMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SharedLoanMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SharedLoanMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SharedLoan.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *SharedLoanMutation) SetUserID(i int) {
+	m.user = &i
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *SharedLoanMutation) UserID() (r int, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the SharedLoan entity.
+// If the SharedLoan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SharedLoanMutation) OldUserID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *SharedLoanMutation) ResetUserID() {
+	m.user = nil
+}
+
+// SetLoanID sets the "loan_id" field.
+func (m *SharedLoanMutation) SetLoanID(i int) {
+	m.loan = &i
+}
+
+// LoanID returns the value of the "loan_id" field in the mutation.
+func (m *SharedLoanMutation) LoanID() (r int, exists bool) {
+	v := m.loan
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLoanID returns the old "loan_id" field's value of the SharedLoan entity.
+// If the SharedLoan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SharedLoanMutation) OldLoanID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLoanID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLoanID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLoanID: %w", err)
+	}
+	return oldValue.LoanID, nil
+}
+
+// ResetLoanID resets all changes to the "loan_id" field.
+func (m *SharedLoanMutation) ResetLoanID() {
+	m.loan = nil
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *SharedLoanMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[sharedloan.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *SharedLoanMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *SharedLoanMutation) UserIDs() (ids []int) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *SharedLoanMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// ClearLoan clears the "loan" edge to the Loan entity.
+func (m *SharedLoanMutation) ClearLoan() {
+	m.clearedloan = true
+	m.clearedFields[sharedloan.FieldLoanID] = struct{}{}
+}
+
+// LoanCleared reports if the "loan" edge to the Loan entity was cleared.
+func (m *SharedLoanMutation) LoanCleared() bool {
+	return m.clearedloan
+}
+
+// LoanIDs returns the "loan" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// LoanID instead. It exists only for internal usage by the builders.
+func (m *SharedLoanMutation) LoanIDs() (ids []int) {
+	if id := m.loan; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetLoan resets all changes to the "loan" edge.
+func (m *SharedLoanMutation) ResetLoan() {
+	m.loan = nil
+	m.clearedloan = false
+}
+
+// Where appends a list predicates to the SharedLoanMutation builder.
+func (m *SharedLoanMutation) Where(ps ...predicate.SharedLoan) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SharedLoanMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SharedLoanMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SharedLoan, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SharedLoanMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SharedLoanMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SharedLoan).
+func (m *SharedLoanMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SharedLoanMutation) Fields() []string {
+	fields := make([]string, 0, 2)
+	if m.user != nil {
+		fields = append(fields, sharedloan.FieldUserID)
+	}
+	if m.loan != nil {
+		fields = append(fields, sharedloan.FieldLoanID)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SharedLoanMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case sharedloan.FieldUserID:
+		return m.UserID()
+	case sharedloan.FieldLoanID:
+		return m.LoanID()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SharedLoanMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case sharedloan.FieldUserID:
+		return m.OldUserID(ctx)
+	case sharedloan.FieldLoanID:
+		return m.OldLoanID(ctx)
+	}
+	return nil, fmt.Errorf("unknown SharedLoan field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SharedLoanMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case sharedloan.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case sharedloan.FieldLoanID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLoanID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SharedLoan field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SharedLoanMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SharedLoanMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SharedLoanMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown SharedLoan numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SharedLoanMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SharedLoanMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SharedLoanMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown SharedLoan nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SharedLoanMutation) ResetField(name string) error {
+	switch name {
+	case sharedloan.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case sharedloan.FieldLoanID:
+		m.ResetLoanID()
+		return nil
+	}
+	return fmt.Errorf("unknown SharedLoan field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SharedLoanMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.user != nil {
+		edges = append(edges, sharedloan.EdgeUser)
+	}
+	if m.loan != nil {
+		edges = append(edges, sharedloan.EdgeLoan)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SharedLoanMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case sharedloan.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	case sharedloan.EdgeLoan:
+		if id := m.loan; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SharedLoanMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SharedLoanMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SharedLoanMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.cleareduser {
+		edges = append(edges, sharedloan.EdgeUser)
+	}
+	if m.clearedloan {
+		edges = append(edges, sharedloan.EdgeLoan)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SharedLoanMutation) EdgeCleared(name string) bool {
+	switch name {
+	case sharedloan.EdgeUser:
+		return m.cleareduser
+	case sharedloan.EdgeLoan:
+		return m.clearedloan
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SharedLoanMutation) ClearEdge(name string) error {
+	switch name {
+	case sharedloan.EdgeUser:
+		m.ClearUser()
+		return nil
+	case sharedloan.EdgeLoan:
+		m.ClearLoan()
+		return nil
+	}
+	return fmt.Errorf("unknown SharedLoan unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SharedLoanMutation) ResetEdge(name string) error {
+	switch name {
+	case sharedloan.EdgeUser:
+		m.ResetUser()
+		return nil
+	case sharedloan.EdgeLoan:
+		m.ResetLoan()
+		return nil
+	}
+	return fmt.Errorf("unknown SharedLoan edge %s", name)
 }
 
 // UserMutation represents an operation that mutates the User nodes in the graph.
 type UserMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	name          *string
-	social        *string
-	address       *string
-	clearedFields map[string]struct{}
-	loans         map[int]struct{}
-	removedloans  map[int]struct{}
-	clearedloans  bool
-	done          bool
-	oldValue      func(context.Context) (*User, error)
-	predicates    []predicate.User
+	op                 Op
+	typ                string
+	id                 *int
+	name               *string
+	social             *string
+	address            *string
+	clearedFields      map[string]struct{}
+	loans              map[int]struct{}
+	removedloans       map[int]struct{}
+	clearedloans       bool
+	shared_loan        map[int]struct{}
+	removedshared_loan map[int]struct{}
+	clearedshared_loan bool
+	done               bool
+	oldValue           func(context.Context) (*User, error)
+	predicates         []predicate.User
 }
 
 var _ ent.Mutation = (*UserMutation)(nil)
@@ -963,6 +1536,60 @@ func (m *UserMutation) ResetLoans() {
 	m.removedloans = nil
 }
 
+// AddSharedLoanIDs adds the "shared_loan" edge to the SharedLoan entity by ids.
+func (m *UserMutation) AddSharedLoanIDs(ids ...int) {
+	if m.shared_loan == nil {
+		m.shared_loan = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.shared_loan[ids[i]] = struct{}{}
+	}
+}
+
+// ClearSharedLoan clears the "shared_loan" edge to the SharedLoan entity.
+func (m *UserMutation) ClearSharedLoan() {
+	m.clearedshared_loan = true
+}
+
+// SharedLoanCleared reports if the "shared_loan" edge to the SharedLoan entity was cleared.
+func (m *UserMutation) SharedLoanCleared() bool {
+	return m.clearedshared_loan
+}
+
+// RemoveSharedLoanIDs removes the "shared_loan" edge to the SharedLoan entity by IDs.
+func (m *UserMutation) RemoveSharedLoanIDs(ids ...int) {
+	if m.removedshared_loan == nil {
+		m.removedshared_loan = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.shared_loan, ids[i])
+		m.removedshared_loan[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedSharedLoan returns the removed IDs of the "shared_loan" edge to the SharedLoan entity.
+func (m *UserMutation) RemovedSharedLoanIDs() (ids []int) {
+	for id := range m.removedshared_loan {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// SharedLoanIDs returns the "shared_loan" edge IDs in the mutation.
+func (m *UserMutation) SharedLoanIDs() (ids []int) {
+	for id := range m.shared_loan {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetSharedLoan resets all changes to the "shared_loan" edge.
+func (m *UserMutation) ResetSharedLoan() {
+	m.shared_loan = nil
+	m.clearedshared_loan = false
+	m.removedshared_loan = nil
+}
+
 // Where appends a list predicates to the UserMutation builder.
 func (m *UserMutation) Where(ps ...predicate.User) {
 	m.predicates = append(m.predicates, ps...)
@@ -1139,9 +1766,12 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.loans != nil {
 		edges = append(edges, user.EdgeLoans)
+	}
+	if m.shared_loan != nil {
+		edges = append(edges, user.EdgeSharedLoan)
 	}
 	return edges
 }
@@ -1156,15 +1786,24 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeSharedLoan:
+		ids := make([]ent.Value, 0, len(m.shared_loan))
+		for id := range m.shared_loan {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.removedloans != nil {
 		edges = append(edges, user.EdgeLoans)
+	}
+	if m.removedshared_loan != nil {
+		edges = append(edges, user.EdgeSharedLoan)
 	}
 	return edges
 }
@@ -1179,15 +1818,24 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeSharedLoan:
+		ids := make([]ent.Value, 0, len(m.removedshared_loan))
+		for id := range m.removedshared_loan {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.clearedloans {
 		edges = append(edges, user.EdgeLoans)
+	}
+	if m.clearedshared_loan {
+		edges = append(edges, user.EdgeSharedLoan)
 	}
 	return edges
 }
@@ -1198,6 +1846,8 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 	switch name {
 	case user.EdgeLoans:
 		return m.clearedloans
+	case user.EdgeSharedLoan:
+		return m.clearedshared_loan
 	}
 	return false
 }
@@ -1216,6 +1866,9 @@ func (m *UserMutation) ResetEdge(name string) error {
 	switch name {
 	case user.EdgeLoans:
 		m.ResetLoans()
+		return nil
+	case user.EdgeSharedLoan:
+		m.ResetSharedLoan()
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)

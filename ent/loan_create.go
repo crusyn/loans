@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/crusyn/loans/ent/loan"
+	"github.com/crusyn/loans/ent/sharedloan"
 	"github.com/crusyn/loans/ent/user"
 )
 
@@ -47,6 +48,21 @@ func (lc *LoanCreate) SetBorrowerID(i int) *LoanCreate {
 // SetBorrower sets the "borrower" edge to the User entity.
 func (lc *LoanCreate) SetBorrower(u *User) *LoanCreate {
 	return lc.SetBorrowerID(u.ID)
+}
+
+// AddSharedLoanIDs adds the "shared_loan" edge to the SharedLoan entity by IDs.
+func (lc *LoanCreate) AddSharedLoanIDs(ids ...int) *LoanCreate {
+	lc.mutation.AddSharedLoanIDs(ids...)
+	return lc
+}
+
+// AddSharedLoan adds the "shared_loan" edges to the SharedLoan entity.
+func (lc *LoanCreate) AddSharedLoan(s ...*SharedLoan) *LoanCreate {
+	ids := make([]int, len(s))
+	for i := range s {
+		ids[i] = s[i].ID
+	}
+	return lc.AddSharedLoanIDs(ids...)
 }
 
 // Mutation returns the LoanMutation object of the builder.
@@ -151,6 +167,22 @@ func (lc *LoanCreate) createSpec() (*Loan, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.BorrowerID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := lc.mutation.SharedLoanIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   loan.SharedLoanTable,
+			Columns: []string{loan.SharedLoanColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sharedloan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

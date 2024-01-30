@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// Loan is the client for interacting with the Loan builders.
 	Loan *LoanClient
+	// SharedLoan is the client for interacting with the SharedLoan builders.
+	SharedLoan *SharedLoanClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 
@@ -148,6 +150,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.Loan = NewLoanClient(tx.config)
+	tx.SharedLoan = NewSharedLoanClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }
 

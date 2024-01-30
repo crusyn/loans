@@ -32,9 +32,11 @@ type User struct {
 type UserEdges struct {
 	// Loans holds the value of the loans edge.
 	Loans []*Loan `json:"loans,omitempty"`
+	// SharedLoan holds the value of the shared_loan edge.
+	SharedLoan []*SharedLoan `json:"shared_loan,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // LoansOrErr returns the Loans value or an error if the edge
@@ -44,6 +46,15 @@ func (e UserEdges) LoansOrErr() ([]*Loan, error) {
 		return e.Loans, nil
 	}
 	return nil, &NotLoadedError{edge: "loans"}
+}
+
+// SharedLoanOrErr returns the SharedLoan value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) SharedLoanOrErr() ([]*SharedLoan, error) {
+	if e.loadedTypes[1] {
+		return e.SharedLoan, nil
+	}
+	return nil, &NotLoadedError{edge: "shared_loan"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -110,6 +121,11 @@ func (u *User) Value(name string) (ent.Value, error) {
 // QueryLoans queries the "loans" edge of the User entity.
 func (u *User) QueryLoans() *LoanQuery {
 	return NewUserClient(u.config).QueryLoans(u)
+}
+
+// QuerySharedLoan queries the "shared_loan" edge of the User entity.
+func (u *User) QuerySharedLoan() *SharedLoanQuery {
+	return NewUserClient(u.config).QuerySharedLoan(u)
 }
 
 // Update returns a builder for updating this User.

@@ -9,5 +9,8 @@ import (
 // Loan is the predicate function for loan builders.
 type Loan func(*sql.Selector)
 
+// SharedLoan is the predicate function for sharedloan builders.
+type SharedLoan func(*sql.Selector)
+
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

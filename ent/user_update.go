@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/crusyn/loans/ent/loan"
 	"github.com/crusyn/loans/ent/predicate"
+	"github.com/crusyn/loans/ent/sharedloan"
 	"github.com/crusyn/loans/ent/user"
 )
 
@@ -91,6 +92,21 @@ func (uu *UserUpdate) AddLoans(l ...*Loan) *UserUpdate {
 	return uu.AddLoanIDs(ids...)
 }
 
+// AddSharedLoanIDs adds the "shared_loan" edge to the SharedLoan entity by IDs.
+func (uu *UserUpdate) AddSharedLoanIDs(ids ...int) *UserUpdate {
+	uu.mutation.AddSharedLoanIDs(ids...)
+	return uu
+}
+
+// AddSharedLoan adds the "shared_loan" edges to the SharedLoan entity.
+func (uu *UserUpdate) AddSharedLoan(s ...*SharedLoan) *UserUpdate {
+	ids := make([]int, len(s))
+	for i := range s {
+		ids[i] = s[i].ID
+	}
+	return uu.AddSharedLoanIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uu *UserUpdate) Mutation() *UserMutation {
 	return uu.mutation
@@ -115,6 +131,27 @@ func (uu *UserUpdate) RemoveLoans(l ...*Loan) *UserUpdate {
 		ids[i] = l[i].ID
 	}
 	return uu.RemoveLoanIDs(ids...)
+}
+
+// ClearSharedLoan clears all "shared_loan" edges to the SharedLoan entity.
+func (uu *UserUpdate) ClearSharedLoan() *UserUpdate {
+	uu.mutation.ClearSharedLoan()
+	return uu
+}
+
+// RemoveSharedLoanIDs removes the "shared_loan" edge to SharedLoan entities by IDs.
+func (uu *UserUpdate) RemoveSharedLoanIDs(ids ...int) *UserUpdate {
+	uu.mutation.RemoveSharedLoanIDs(ids...)
+	return uu
+}
+
+// RemoveSharedLoan removes "shared_loan" edges to SharedLoan entities.
+func (uu *UserUpdate) RemoveSharedLoan(s ...*SharedLoan) *UserUpdate {
+	ids := make([]int, len(s))
+	for i := range s {
+		ids[i] = s[i].ID
+	}
+	return uu.RemoveSharedLoanIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -210,6 +247,51 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if uu.mutation.SharedLoanCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SharedLoanTable,
+			Columns: []string{user.SharedLoanColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sharedloan.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedSharedLoanIDs(); len(nodes) > 0 && !uu.mutation.SharedLoanCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SharedLoanTable,
+			Columns: []string{user.SharedLoanColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sharedloan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.SharedLoanIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SharedLoanTable,
+			Columns: []string{user.SharedLoanColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sharedloan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, uu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
@@ -293,6 +375,21 @@ func (uuo *UserUpdateOne) AddLoans(l ...*Loan) *UserUpdateOne {
 	return uuo.AddLoanIDs(ids...)
 }
 
+// AddSharedLoanIDs adds the "shared_loan" edge to the SharedLoan entity by IDs.
+func (uuo *UserUpdateOne) AddSharedLoanIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.AddSharedLoanIDs(ids...)
+	return uuo
+}
+
+// AddSharedLoan adds the "shared_loan" edges to the SharedLoan entity.
+func (uuo *UserUpdateOne) AddSharedLoan(s ...*SharedLoan) *UserUpdateOne {
+	ids := make([]int, len(s))
+	for i := range s {
+		ids[i] = s[i].ID
+	}
+	return uuo.AddSharedLoanIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uuo *UserUpdateOne) Mutation() *UserMutation {
 	return uuo.mutation
@@ -317,6 +414,27 @@ func (uuo *UserUpdateOne) RemoveLoans(l ...*Loan) *UserUpdateOne {
 		ids[i] = l[i].ID
 	}
 	return uuo.RemoveLoanIDs(ids...)
+}
+
+// ClearSharedLoan clears all "shared_loan" edges to the SharedLoan entity.
+func (uuo *UserUpdateOne) ClearSharedLoan() *UserUpdateOne {
+	uuo.mutation.ClearSharedLoan()
+	return uuo
+}
+
+// RemoveSharedLoanIDs removes the "shared_loan" edge to SharedLoan entities by IDs.
+func (uuo *UserUpdateOne) RemoveSharedLoanIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.RemoveSharedLoanIDs(ids...)
+	return uuo
+}
+
+// RemoveSharedLoan removes "shared_loan" edges to SharedLoan entities.
+func (uuo *UserUpdateOne) RemoveSharedLoan(s ...*SharedLoan) *UserUpdateOne {
+	ids := make([]int, len(s))
+	for i := range s {
+		ids[i] = s[i].ID
+	}
+	return uuo.RemoveSharedLoanIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -435,6 +553,51 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(loan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uuo.mutation.SharedLoanCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SharedLoanTable,
+			Columns: []string{user.SharedLoanColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sharedloan.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedSharedLoanIDs(); len(nodes) > 0 && !uuo.mutation.SharedLoanCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SharedLoanTable,
+			Columns: []string{user.SharedLoanColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sharedloan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.SharedLoanIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SharedLoanTable,
+			Columns: []string{user.SharedLoanColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sharedloan.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

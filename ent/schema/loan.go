@@ -29,5 +29,6 @@ func (Loan) Edges() []ent.Edge {
 			Field("borrower_id").
 			Required().
 			Unique(),
+		edge.To("shared_loan", SharedLoan.Type),
 	}
 }

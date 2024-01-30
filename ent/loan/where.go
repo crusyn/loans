@@ -236,6 +236,29 @@ func HasBorrowerWith(preds ...predicate.User) predicate.Loan {
 	})
 }
 
+// HasSharedLoan applies the HasEdge predicate on the "shared_loan" edge.
+func HasSharedLoan() predicate.Loan {
+	return predicate.Loan(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, SharedLoanTable, SharedLoanColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSharedLoanWith applies the HasEdge predicate on the "shared_loan" edge with a given conditions (other predicates).
+func HasSharedLoanWith(preds ...predicate.SharedLoan) predicate.Loan {
+	return predicate.Loan(func(s *sql.Selector) {
+		step := newSharedLoanStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Loan) predicate.Loan {
 	return predicate.Loan(sql.AndPredicates(predicates...))
