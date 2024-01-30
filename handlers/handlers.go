@@ -41,6 +41,12 @@ type loanMonthResponseItem struct {
 	MonthlyPayment   float64 `json:"monthlyPayment"`
 }
 
+type loanMonthSummary struct {
+	EndingBalance      float64 `json:"endingBalance"`
+	TotalPrincipalPaid float64 `json:"totalPrincipalPaid"`
+	TotalInterestPaid  float64 `json:"totalInterestPaid"`
+}
+
 func (h Handler) CreateUser(ctx *gin.Context) {
 
 	var newUser newUserRequest
@@ -201,10 +207,10 @@ func (h Handler) GetLoanSchedule(ctx *gin.Context) {
 
 	months := []loanMonthResponseItem{}
 
-	schedule, err := CreateAmortizationSchedule(float64(l.Amount), l.Rate, l.Term)
+	schedule, err := CreateAmortizationSchedule(float64(l.Amount)/100, l.Rate, l.Term)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "could not return generate amortization schedule",
+			"message": "could not generate amortization schedule",
 		})
 		return
 	}
@@ -219,6 +225,56 @@ func (h Handler) GetLoanSchedule(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, months)
 
+}
+
+func (h Handler) GetMonthSummary(ctx *gin.Context) {
+	id := ctx.Param("id")
+
+	i, err := strconv.Atoi(id)
+	if err != nil {
+		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
+			"message": "id must be numeric",
+		})
+		return
+	}
+
+	l, err := h.Ent.Loan.Get(ctx, i)
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "could not find loan",
+		})
+		return
+	}
+
+	schedule, err := CreateAmortizationSchedule(float64(l.Amount)/100, l.Rate, l.Term)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "could not generate amortization schedule",
+		})
+		return
+	}
+
+	month := ctx.Param("number")
+	n, err := strconv.Atoi(month)
+	if err != nil {
+		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
+			"message": "month number must be numeric",
+		})
+		return
+	}
+
+	if n > l.Term {
+		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
+			"message": "month number cannot be greater than term",
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, loanMonthSummary{
+		EndingBalance:      schedule[n-1].EndingBalance,
+		TotalPrincipalPaid: schedule[n-1].TotalPrincipalPaid,
+		TotalInterestPaid:  schedule[n-1].TotalInterestPaid,
+	})
 }
 
 func monthlyPayment(loanAmountCents int, annualInterestRate float64, termMonths int) (int, error) {

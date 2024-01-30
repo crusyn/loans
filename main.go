@@ -40,7 +40,7 @@ func main() {
 	r.POST("/loan", h.CreateLoan)
 	r.GET("/loan/:id", h.GetLoan)
 	r.GET("/loan/:id/schedule", h.GetLoanSchedule)
-	r.GET("/loan/:id/summary/:year/:month")
+	r.GET("/loan/:id/month/:number/", h.GetMonthSummary)
 
 	r.Run() // listen and serve on 0.0.0.0:8080
 }
