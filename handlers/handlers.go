@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/crusyn/loans/ent"
+	"github.com/crusyn/loans/ent/loan"
 	"github.com/crusyn/loans/ent/user"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
@@ -30,6 +31,7 @@ type newLoanRequest struct {
 }
 
 type loanResponse struct {
+	Id     int     `json:"id"`
 	Amount float64 `json:"amount"`
 	Rate   float64 `json:"rate"`
 	Term   int     `json:"term"`
@@ -180,10 +182,61 @@ func (h Handler) GetLoan(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, loanResponse{
+		Id:     l.ID,
 		Amount: float64(l.Amount) / 100,
 		Rate:   l.Rate,
 		Term:   l.Term,
 	})
+}
+
+func (h Handler) GetLoans(ctx *gin.Context) {
+	id := ctx.Param("id")
+
+	i, err := strconv.Atoi(id)
+	if err != nil {
+		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
+			"message": "id must be numeric",
+		})
+		return
+	}
+
+	userExists, err := h.Ent.User.Query().Where(user.ID(i)).Exist(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "internal error",
+		})
+		return
+	}
+
+	if !userExists {
+		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
+			"message": "user doesn't exist",
+		})
+		return
+	}
+
+	loans, err := h.Ent.Loan.Query().
+		Where(loan.BorrowerID(i)).
+		All(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "internal error",
+		})
+		return
+	}
+
+	response := []loanResponse{}
+
+	for _, l := range loans {
+		response = append(response, loanResponse{
+			Id:     l.ID,
+			Amount: float64(l.Amount) / 100,
+			Rate:   l.Rate,
+			Term:   l.Term,
+		})
+	}
+
+	ctx.JSON(http.StatusOK, response)
 }
 
 func (h Handler) GetLoanSchedule(ctx *gin.Context) {

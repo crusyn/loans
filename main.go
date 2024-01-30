@@ -37,6 +37,7 @@ func main() {
 	})
 
 	r.POST("/user", h.CreateUser)
+	r.GET("/user/:id/loans", h.GetLoans)
 	r.POST("/loan", h.CreateLoan)
 	r.GET("/loan/:id", h.GetLoan)
 	r.GET("/loan/:id/schedule", h.GetLoanSchedule)
